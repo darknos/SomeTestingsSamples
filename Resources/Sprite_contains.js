@@ -50,8 +50,8 @@ game.addEventListener("onload", function(e) {
     scene.add(scaled);
 
     // init
-    rotated.anchorPoint = {x: 0, y: 0};
-    rotated.angle = 90;
+    rotated.rotateFrom(-90,0,0);
+    ///rotated.angle = 60;
 
     rotated.addChildNode(childOfRotated);
 
@@ -94,7 +94,7 @@ game.addEventListener("touchstart", function(event) {
 		}
 
     // ======================
-
+Ti.API.info(event.x,event.y);
     // Contains test
     Ti.API.info(
     	"Sprites that contain this point: " +
@@ -118,10 +118,10 @@ game.addEventListener("touchstart", function(event) {
  * returns colored sprite-square
  */
 function createColoredNamedSquare(x, y, w, h, r, g, b, name) {
-	/*console.debug(
+	console.debug(
 		"Creating square at " + x + ", " + y + ", " +
 		w + "x" + h
-	);*/
+	);
 	var sprite = platino.createSprite({
 		x: x,
 		y: y,
