@@ -74,5 +74,9 @@
 //
 
 //demonstrates transformed sprite being clicked correctly
-Ti.include("Sprite_contains.js");
+// Ti.include("Sprite_contains.js");
+//
+
+//demonstrates native particles size
+Ti.include("Particles_size.js");
 //
