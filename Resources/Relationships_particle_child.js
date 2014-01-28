@@ -57,8 +57,10 @@ game.addEventListener("onload", function(e) {
 			x: 50,
 			y: 50
 		});
+		particles.scaleFromCenter(2, 2, 0,0);
 
 		scene.addBatch([ parentRed, childGreen, childBlue, particles ]);
+
 
 	// ==========================
 
@@ -79,7 +81,7 @@ game.addEventListener("onload", function(e) {
 	// Animate green
 	childGreen.transform(platino.createTransform({
 		x: 300,
-		scaleY: 0.5,
+		scaleY: 0.125,
 		autoreverse: true,
 		duration: 1000,
 		repeat: -1
@@ -102,12 +104,12 @@ game.addEventListener("onload", function(e) {
  */
 function createColoredSquare(x, y, w, h, r, g, b) {
 	var sprite = platino.createSprite({
-		x: x || 0,
-		y: y || 0,
-		width:  w || 100,
-		height: h || 100
+		x: x,
+		y: y,
+		width:  w,
+		height: h
 	});
-	sprite.color(r || 1, g || 1, b || 1);
+	sprite.color(r, g, b);
 	return sprite;
 }
 
