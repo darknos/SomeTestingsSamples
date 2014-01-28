@@ -70,5 +70,9 @@
 //
 
 //demonstrates particle emitter following parent as true child
-Ti.include("Relationships_particle_child.js");
+// Ti.include("Relationships_particle_child.js");
+//
+
+//demonstrates transformed sprite being clicked correctly
+Ti.include("Sprite_contains.js");
 //
