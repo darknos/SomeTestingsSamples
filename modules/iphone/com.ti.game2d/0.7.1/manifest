@@ -1,0 +1,22 @@
+#
+# this is your module manifest and used by Titanium
+# during compilation, packaging, distribution, etc.
+#
+version: 0.7.1
+apiversion: 2
+description: TiGame2d 2D Game Engine Module for Titanium Mobile
+author: Sergey Nosenko
+license: 
+// Copyright (c) 2013 TiGame2d project
+// Copyright (c) 2013 Sergey Nosenko
+// All rights reserved.
+
+copyright: Sergey Nosenko
+
+
+# these should not be edited
+name: TiGame2dModuleiPhone
+moduleid: com.ti.game2d
+guid: 43e5477d-c827-44b6-b7e3-9c1db662a652
+platform: iphone
+minsdk: 2.1.0.GA

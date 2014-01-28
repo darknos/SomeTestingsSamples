@@ -1,0 +1,9 @@
+{
+    "description": "Box2D JS",
+    "directories": {
+        "lib": "."
+    },
+    "main": "co.lanica.box2djs",
+    "name": "co.lanica.box2djs",
+    "version": "2.1.0"
+}

@@ -1,0 +1,17 @@
+#
+# this is your module manifest and used by Titanium
+# during compilation, packaging, distribution, etc.
+#
+version: 2.1.0
+description: Box2D JS
+author: 
+license: commercial
+copyright: Copyright (c) Lanica, Inc.
+
+
+# these should not be edited
+name: co.lanica.box2djs
+moduleid: co.lanica.box2djs
+guid: 1236b5d2-2bb5-4339-b930-297637aeec4e
+platform: commonjs
+minsdk: 2.1.0

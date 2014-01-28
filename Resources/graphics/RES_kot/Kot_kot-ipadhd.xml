@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This atlas was generated using SpriteHelper 2 -->
+<!-- http://www.gamedevhelper.com -->
+<Imageset Name="kot" Imagefile="graphics/RES_kot/Kot_kot-ipadhd.png" NativeHorzRes="1009" NativeVertRes="1193" AutoScaled="false">
+	<Image Name="leg2.png" XPos="672" YPos="324" Width="243" Height="312"/>
+	<Image Name="had.png" XPos="1" YPos="1" Width="669" Height="540"/>
+	<Image Name="hand2.png" XPos="689" YPos="973" Width="252" Height="112"/>
+	<Image Name="head.png" XPos="672" YPos="1" Width="303" Height="321"/>
+	<Image Name="body.png" XPos="455" YPos="543" Width="150" Height="285"/>
+	<Image Name="hand1.png" XPos="832" YPos="638" Width="175" Height="221"/>
+	<Image Name="leg1.png" XPos="606" YPos="638" Width="224" Height="333"/>
+	<Image Name="poyas.png" XPos="455" YPos="830" Width="132" Height="133"/>
+	<Image Name="hvost.png" XPos="455" YPos="973" Width="232" Height="218"/>
+	<Image Name="shpaga.png" XPos="1" YPos="543" Width="452" Height="442"/>
+</Imageset>

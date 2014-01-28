@@ -1,0 +1,115 @@
+{
+  "name" : "Ukol",
+  "skinFrames" : [
+
+  ],
+  "connectionFrames" : [
+
+  ],
+  "visibilityFrames" : [
+
+  ],
+  "positionFrames" : [
+    {
+      "bones" : {
+        "UntitledNode_6" : "{41, -102}",
+        "UntitledNode" : "{52, -19}",
+        "UntitledNode_1" : "{-39, -13}",
+        "UntitledNode_4" : "{20, -55}",
+        "RootBone" : "{17, 2}",
+        "UntitledNode_7" : "{-7, -108}",
+        "UntitledNode_2" : "{-115, 0}",
+        "UntitledNode_9" : "{24, 42}",
+        "UntitledNode_5" : "{-2, -56}",
+        "UntitledNode_8" : "{70, -61}",
+        "UntitledNode_3" : "{10, -49}"
+      },
+      "time" : 0
+    },
+    {
+      "bones" : {
+        "UntitledNode_6" : "{55, -94}",
+        "UntitledNode" : "{32, 9}",
+        "UntitledNode_1" : "{-63, 9}",
+        "UntitledNode_4" : "{19, -58}",
+        "RootBone" : "{-7, -1}",
+        "UntitledNode_7" : "{-8, -108}",
+        "UntitledNode_2" : "{-141, 6}",
+        "UntitledNode_9" : "{-21, 38}"
+      },
+      "time" : 0.6142969
+    },
+    {
+      "bones" : {
+        "UntitledNode_6" : "{42, -76}",
+        "UntitledNode" : "{-5, -20}",
+        "UntitledNode_1" : "{-103, -14}",
+        "UntitledNode_4" : "{-5, -59}",
+        "RootBone" : "{-46, -18}",
+        "UntitledNode_7" : "{-66, -106}",
+        "UntitledNode_2" : "{-180, -5}",
+        "UntitledNode_9" : "{-44, 23}",
+        "UntitledNode_5" : "{-31, -67}",
+        "UntitledNode_8" : "{12, -7}",
+        "UntitledNode_3" : "{-18, -60}"
+      },
+      "time" : 0.9185938
+    },
+    {
+      "bones" : {
+        "UntitledNode_6" : "{35, -100}",
+        "UntitledNode" : "{26, -20}",
+        "UntitledNode_1" : "{-47, -53}",
+        "UntitledNode_4" : "{9, -57}",
+        "RootBone" : "{-12, -7}",
+        "UntitledNode_7" : "{-36, -110}",
+        "UntitledNode_2" : "{-81, 15}",
+        "UntitledNode_9" : "{-7, 34}",
+        "UntitledNode_5" : "{-16, -61}",
+        "UntitledNode_8" : "{54, -31}",
+        "UntitledNode_3" : "{-3, -54}"
+      },
+      "time" : 1.696758
+    },
+    {
+      "bones" : {
+        "UntitledNode_6" : "{21, -106}",
+        "UntitledNode" : "{36, -34}",
+        "UntitledNode_1" : "{-31, 34}",
+        "UntitledNode_4" : "{20, -55}",
+        "RootBone" : "{17, 2}",
+        "UntitledNode_7" : "{-8, -108}",
+        "UntitledNode_2" : "{-40, 111}",
+        "UntitledNode_9" : "{24, 42}",
+        "UntitledNode_5" : "{-2, -56}",
+        "UntitledNode_8" : "{63, -80}",
+        "UntitledNode_3" : "{10, -49}"
+      },
+      "time" : 2.979258
+    },
+    {
+      "bones" : {
+        "UntitledNode_6" : "{21, -108}",
+        "UntitledNode" : "{52, -19}",
+        "UntitledNode_1" : "{-39, -13}",
+        "UntitledNode_2" : "{-115, 0}",
+        "UntitledNode_8" : "{70, -61}"
+      },
+      "time" : 3.28
+    }
+  ],
+  "playMode" : 1,
+  "spriteTransformFrames" : [
+
+  ],
+  "metadata" : {
+    "app" : "SpriteHelper",
+    "author" : "Vladu Bogdan",
+    "web" : "http:\/\/www.gamedevhelper.com",
+    "version" : 1
+  },
+  "zOrderFrames" : [
+
+  ],
+  "totalTime" : 3.28
+}
