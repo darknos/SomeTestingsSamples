@@ -25,7 +25,7 @@
 //
 
 //demonstrate animating a skeleton and moving it left and right 
-Ti.include("Skeleton_AnimateAndMove.js");
+// Ti.include("Skeleton_AnimateAndMove.js");
 //
 
 //demonstrate another useful feature you can achieve using a skeleton 
@@ -67,4 +67,8 @@ Ti.include("Skeleton_AnimateAndMove.js");
 
 //demonstrate loading sprite sheet animation. animation has frames with different time and also use info per frame - so watch console
 //Ti.include("SpriteSheetAnimations_DifferentFrameTime.js");
+//
+
+//demonstrates particle emitter following parent as true child
+Ti.include("Relationships_particle_child.js");
 //
