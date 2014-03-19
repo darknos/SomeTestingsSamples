@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Imageset imagePath="seagull.png">
+    <Image Name="frame0" XPos="0" YPos="0" Width="46" Height="51"/>
+    <Image Name="frame1" XPos="46" YPos="0" Width="46" Height="51"/>
+    <Image Name="frame2" XPos="0" YPos="51" Width="46" Height="51"/>
+    <Image Name="frame3" XPos="46" YPos="51" Width="46" Height="51"/>
+    <Image Name="frame4" XPos="0" YPos="102" Width="46" Height="51"/>
+    <Image Name="frame5" XPos="46" YPos="102" Width="46" Height="51"/>
+    <Image Name="frame6" XPos="0" YPos="153" Width="46" Height="51"/>
+</Imageset>

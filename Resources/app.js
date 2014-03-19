@@ -70,7 +70,7 @@
 //
 
 //demonstrates particle emitter following parent as true child
- Ti.include("Relationships_particle_child.js");
+//Ti.include("Relationships_particle_child.js");
 //
 
 //demonstrates transformed sprite being clicked correctly
@@ -80,3 +80,5 @@
 //demonstrates native particles size
 //Ti.include("Particles_size.js");
 //
+
+Ti.include("readAppDataDir.js");
