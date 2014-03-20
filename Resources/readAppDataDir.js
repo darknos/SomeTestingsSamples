@@ -19,7 +19,7 @@ var scene = game2d.createScene();
 // add your scene to game view
 game.pushScene(scene);
 
-
+game.debug = true;
 // Onload event is called when the game is loaded.
 // The game.screen.width and game.screen.height are not yet set until this onload event.
 game.addEventListener('onload', function(e) {
@@ -55,56 +55,63 @@ game.addEventListener('onload', function(e) {
 
     // ===============================
 
-    // [
-    //     "sprite",
-    //     "particles",
-    //     "spritesheet",
-    // ].forEach(function(e) {
-    //     Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory, e).createDirectory();
-    // });
+    [
+        "sprite",
+        "particles",
+        "spritesheet",
+    ].forEach(function(e) {
+        Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory, e).createDirectory();
+    });
 
     // // auto copy from resources to app data
-    // [
-    //     // folders
-    //     // "sprite",
-    //     // "particles",
-    //     // "spritesheet",
-    //     // files
-    //     "sprite/sprite.png",
-    //     "particles/particle.pex",
-    //     "particles/texture.png",
-    //     "spritesheet/seagull.xml",
-    //     "spritesheet/seagull.png"
-    // ].forEach(function(e) {
-    //     console.debug("Copying", e);
-    //     var f = Ti.Filesystem.getFile(
-    //         Ti.Filesystem.resourcesDirectory, 
-    //         "graphics/RES_readAppDataDir/" + e
-    //     );
-    //     console.debug("file exists? ", f.exists());
-    //     // e = e.substr(0, e.indexOf("/"));
-    //     // console.debug(Ti.Filesystem.applicationDataDirectory + e);
-    //     f.copy(Ti.Filesystem.applicationDataDirectory);
-    //     f = null;
-    // });
+     [
+         // folders
+         // "sprite",
+        // "particles",
+        // "spritesheet",
+        // files
+        "sprite/sprite.png",
+        "particles/particle.pex",
+        "particles/texture.png",
+        "spritesheet/seagull.xml",
+        "spritesheet/seagull.png"
+    ].forEach(function(e) {
+        console.debug("Copying", e);
+        var f = Ti.Filesystem.getFile(
+            Ti.Filesystem.resourcesDirectory, 
+            "graphics/RES_readAppDataDir/" + e
+        );
+        console.debug("file exists? ", f.exists());
+       // e = e.substr(0, e.indexOf("/"));
+        console.debug(Ti.Filesystem.applicationDataDirectory + e);
+        Ti.Filesystem.getFile(
+            Ti.Filesystem.applicationDataDirectory, 
+             e
+        ).write(f.read);
+        
+        f = null;
+    });
 
     // ===== Read from appData =====
     
         // sprite
+        Ti.API.info(Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory,"sprite/sprite.png").nativePath);
         scene.add(game2d.createSprite({
-            image: "%APPDATA%/sprite/sprite.png",
+            image: Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory,"sprite/sprite.png").nativePath, //"%APPDATA%/sprite/sprite.png",
             x: width / 2,
             y: 0 * height / 3
         }));
         // particles
         scene.add(game2d.createParticles({
-            image: "%APPDATA%/particles/particle.pex",
+            image: Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory,"particles/particle.pex").nativePath, //"%APPDATA%/particles/particle.pex",
             x: width / 2,
             y: 1 * height / 3
         }));
         // sheet
+        Ti.API.info("!!!!!!!!!!!!!!!" + Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory,"spritesheet/seagull.xml").nativePath);
         scene.add(game2d.createSpriteSheet({
-            image: "%APPDATA%/spritesheet/seagull.xml",
+            image: "graphics/RES_readAppDataDir/spritesheet/seagull.xml",
+            image: Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory,"spritesheet/seagull.xml").nativePath,
             x: width / 2,
             y: 2 * height / 3
         }));
