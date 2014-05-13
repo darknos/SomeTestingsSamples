@@ -82,3 +82,6 @@
 //
 
 Ti.include("readAppDataDir.js");
+
+// example of usage NetworkHandler
+// Ti.include("NetworkHandler.js");
