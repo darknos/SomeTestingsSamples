@@ -8,11 +8,15 @@ features:
 	cross platform
 	background loading
 	timeout
+	? speed
 	? ETA * based on last N seconds
 	? minimal update interval
 	? multi-thread download
 	? progress bar
 	? idleTimerDisabled
+
+todo:
+	remove files on dl fail
 */
 
 
@@ -34,15 +38,10 @@ features:
 		return [ "Hours", "Minutes", "Seconds", "Milliseconds" ].map(
 			function(e, i) {
 				e = d["get" + e]();
-				if (i < 3) {
-					return e < 10 ? "0" + e : e;
-				} else {
-					switch(true) {
-						case e <   10: return "00" + e;
-						case e <  100: return "0"  + e;
-						default: return e;
-					}
-				}
+				if (i < 3)   return e < 10 ? "0" + e : e;
+				if (e <  10) return "00" + e;
+				if (e < 100) return "0"  + e;
+				return e;
 			}
 		).join(":");
 	}
@@ -88,6 +87,13 @@ features:
 		return undefined;
 	}
 
+
+	function clone(obj) {
+	    var result = {};
+	    for (var key in obj) result[key] = obj[key];
+	    return obj;
+	}
+
 // =================
 
 
@@ -111,36 +117,67 @@ var lastSessionID = "";
 
 function bgLoad(url, params) {
 
+
 	// validate params
-	params = params || {};
+
+	params = clone(params || {});
 	[ "Interval", "Size", "Percent" ].forEach(function(e) {
 		var name = "progressUpdate" + e;
 		params[name] = toPositiveNumber(params[name]);
 	});
-	params.timeout         = toPositiveNumber(params.timeout);
-	params.progressTimeout = toPositiveNumber(params.progressTimeout);
+	// params.timeout         = toPositiveNumber(params.timeout);
+	// params.progressTimeout = toPositiveNumber(params.progressTimeout);
 
 	// shortcuts
+	var onStart    = params.onStart;
 	var onComplete = params.onComplete;
 	var onProgress = params.onProgress;
 	var onFail     = params.onFail;
 
 
-	var sessionID = "bgLoad :: " + url + " :: " + new Date();
-	if (lastSessionID === sessionID) sessionID += "-2";
-	lastSessionID = sessionID;
+
+	var sessionID = (function() {
+		var result = "bgLoad :: " + url + " :: " + new Date();
+		if (lastSessionID === result) result += "-2";
+		lastSessionID = result;
+		return result;
+	})();
 
 	var cfg     = URLSession.createURLSessionBackgroundConfiguration(sessionID);
 	var session = URLSession.createURLSession(cfg);
 	var taskID  = URLSession.backgroundDownloadTaskWithURL(session, url);
 
+
+	var loadingActive = true;
+
+	// var failTimeoutID = -1;
+	// var progressFailTimeoutID = -1;
+
+	var lastProgressUpdate = {
+		time: 0,
+		size: 0,
+		percent: 0,
+		timeStart: 0
+	};
+
+
 	log("IDs: " + prettyStringify({
 		session: sessionID,
-		task: taskID
+		task:    taskID
 	}, true));
 
-	function removeListeners() {
 
+	function finish(reason) {
+
+		if (!loadingActive) {
+			log(
+				"Can't finish inactive downloading" + 
+				(reason ? " for reason " + reason : "")
+			);
+			return;
+		}
+
+		reason && log(reason);
 		log("Removing listeners");
 
 		[
@@ -150,21 +187,27 @@ function bgLoad(url, params) {
 		].forEach(function(e) {
 			Ti.App.iOS.removeEventListener(e, listeners[e]);
 		});
-		
-	}
 
-	function abort(msg) {
-		log("aborting " + sessionID + (msg ? ": " + msg : ""));
-		removeListeners();
+		loadingActive = false;
 		URLSession.invalidateAndCancel(session);
+
 	}
 
-	lastProgressUpdate = {
-		time: 0,
-		size: 0,
-		percent: 0,
-		timeStart: 0
-	};
+
+	// function resetProgressTimeoutFail() {
+	// 	if (params.progressTimeout !== undefined && progressFailTimeoutID !== -1) {
+	// 		clearTimeout(progressFailTimeoutID);
+	// 		progressFailTimeoutID = setTimeout(function() {
+	// 			progressFailTimeoutID = -1;
+	// 			finish("Aborting download: progress timeout exceed");
+	// 			// abort("progress timeout exceed");
+	// 		}, params.progressTimeout);
+	// 	}
+	// }
+
+	
+
+	
 
 	var listeners = {
 
@@ -175,8 +218,7 @@ function bgLoad(url, params) {
 			log("downloadcompleted", prettyStringify(e, true));
 			if (typeof onComplete === "function") onComplete(e.data);
 
-			removeListeners();
-			URLSession.invalidateAndCancel(session);
+			finish("Download complete");
 
 		},
 
@@ -186,13 +228,17 @@ function bgLoad(url, params) {
 
 			// log("downloadprogress", prettyStringify(e));
 
+			var d = new Date();
+			var have  = e.totalBytesWritten;
+			var total = e.totalBytesExpectedToWrite;
 			var firstTick = lastProgressUpdate.timeStart === 0;
 			if (firstTick) {
 				lastProgressUpdate.timeStart = d;
-				if (failTimeoutID !== -1) clearTimeout(failTimeoutID);
+				// if (failTimeoutID !== -1) clearTimeout(failTimeoutID);
+				if (typeof onStart === "function") onStart(total);
 			}
 
-			resetProgressTimeoutFail();
+			// resetProgressTimeoutFail();
 
 			if (typeof onProgress === "function") {
 
@@ -200,10 +246,7 @@ function bgLoad(url, params) {
 				var t = params.progressUpdateInterval;
 				var s = params.progressUpdateSize;
 				var p = params.progressUpdatePercent;
-				var have  = e.totalBytesWritten;
-				var total = e.totalBytesExpectedToWrite;
 
-				var d = new Date();
 				var c = 100 * have / total;
 
 				// bool flags
@@ -217,28 +260,42 @@ function bgLoad(url, params) {
 					t === undefined && s === undefined && p === undefined || 
 					firstTick || time || size || percent
 				) {
+					// log("downloadprogress filtered", prettyStringify(e));
 					if (time)    lastProgressUpdate.time = d;
 					if (size)    lastProgressUpdate.size = have;
 					if (percent) lastProgressUpdate.percent = c;
+					var speed = have / (d - lastProgressUpdate.timeStart);
 					onProgress(
 						have, total,
-						// ETA based on amount of loaded data since start
-						(total - have) / (have / (d - lastProgressUpdate.timeStart))
+						speed, (total - have) / speed						
 					);
 				}
 			}
 		},
 
-		/*dlFailed: function() {
-			if (e.taskIdentifier !== taskID) return;
-			if (typeof onFail === "function") onFail();
-		}*/
+		// { errorCode: -1100, message: "The requested URL was not found on this server.", success: false, ...
+		sessioncompleted: function(e) {
 
-		backgroundtransfer:     function(e) { log("backgroundtransfer",     prettyStringify(e, true)); },
-		sessioncompleted:       function(e) { log("sessioncompleted",       prettyStringify(e, true)); }, // { errorCode: -1100, message: "The requested URL was not found on this server.", success: false, ...
-		sessioneventscompleted: function(e) { log("sessioneventscompleted", prettyStringify(e, true)); }
+			if (e.taskIdentifier !== taskID) return;
+
+			log("sessioncompleted", prettyStringify(e, true));
+
+			if (!e.success) {
+
+				if (typeof onFail === "function") onFail(e.errorCode, e.message);
+
+				finish("Download failed");
+
+			}
+
+		},
+
+		backgroundtransfer:     function(e) { e.taskIdentifier === taskID && log("backgroundtransfer",     prettyStringify(e, true)); },
+		sessioneventscompleted: function(e) { e.taskIdentifier === taskID && log("sessioneventscompleted", prettyStringify(e, true)); }
 
 	};
+
+
 
 	log("Establishing listeners");
 
@@ -250,35 +307,44 @@ function bgLoad(url, params) {
 		Ti.App.iOS.addEventListener(e, listeners[e]);
 	});
 
+	
 
-	var failTimeoutID = -1;
-	var progressFailTimeoutID = -1;
+	// if (timeout !== undefined) {
+	// 	failTimeoutID = setTimeout(function() {
+	// 		failTimeoutID = -1;
+	// 		finish("Aborting download: start timeout exceed");
+	// 	}, params.timeout);
+	// }
 
-	if (timeout !== undefined) {
-		failTimeoutID = setTimeout(function() {
-			failTimeoutID = -1;
-			abort("download start timeout exceed");
-		}, params.timeout);
-	}
+	// if (params.progressTimeout !== undefined) resetProgressTimeoutFail();
 
-
-	function resetProgressTimeoutFail() {
-		if (params.progressTimeout !== undefined && progressFailTimeoutID !== -1) {
-			clearTimeout(progressFailTimeoutID);
-			progressFailTimeoutID = setTimeout(function() {
-				progressFailTimeoutID = -1;
-				abort("progress timeout exceed");
-			}, params.progressTimeout);
-		}
-	}
-
-	if (params.progressTimeout !== undefined) resetProgressTimeoutFail();
-
-	return { abort: abort };
+	return {
+		abort: function() { finish("Aborting download due to request"); }
+	};
 }
 
 
+/*
+	params = {
 
+		onStart:    function(size: <int>),
+		onProgress: function(have: <int>, total: <int>, speed: <float>, eta: <int>),
+		onComplete: function(data: <TiBlob>),
+		onFail:     function(errCode: <int>, errMesage: <string>),
+
+		// Time in ms
+		progressUpdateInterval: <int>,
+
+		// Size in bytes
+		progressUpdateSize: <int>,
+
+		// Percents
+		progressUpdatePercent: <int>,
+
+		// timeout: <int>,
+		// startTimeout: <int>
+	}
+ */
 function download(url, params) {
 
 	params = params || {};
@@ -302,27 +368,28 @@ function doNetworkTest(url) {
 
 	if (!url) return;
 
-	latestLoader = download(
-		url,
-		// "http://www.ex.ua/load/102326988", // 18gb zip
-		// "http://www.ex.ua/load/29563076", // 35mb zip
+	latestLoader = download(url,
 		{
+			onStart: function(size) {
+				log("Download started, size: " + size)
+			},
 			onComplete: function(data) {
 				latestLoader = null;
 				log("Loading complete. Recieved data is ", data);
 			},
-			onFail: function(e) {
+			onFail: function(errCode, errMsg) {
 				latestLoader = null;
-				log("Loading failed because of " + e);
+				log("Loading failed: [" + errCode + "]: " + errMsg);
 			},
-			onProgress: function(have, total, eta) {
+			onProgress: function(have, total, speed, eta) {
 				log("Loading... " + (100 * have / total).toFixed(2) + "%, ETA: " + parseInt(eta / 1000) + "s");
 			},
-			timeout: 3000,
-			progressTimeout: 5000,
-			progressUpdateInterval: 500
-			// progressUpdateSize: 1024 * 1024
-			// progressUpdatePercent: 0.05
+			// progressUpdateInterval: 500
+			progressUpdateSize: 10 * 1024 * 1024 // 10mb
+			// progressUpdatePercent: 5
+			
+			// timeout: 3000,
+			// progressTimeout: 5000,
 		}
 	);
 
@@ -359,7 +426,7 @@ function abortLatestDownload() {
 
 				{
 					color: "#aaffaa", label: "Download 35mb zip",
-					rect: [ 0, 0, width, height / 3 ],
+					rect: [ 0, 0, width, height / 4 ],
 					callback: function() {
 						log("Initiating downloading 35mb zip");
 						doNetworkTest("http://www.ex.ua/load/29563076");
@@ -368,7 +435,7 @@ function abortLatestDownload() {
 
 				{
 					color: "#ffffaa", label: "Download 18gb zip",
-					rect: [ 0, height / 3, width, height / 3 ],
+					rect: [ 0, height / 4, width, height / 4 ],
 					callback: function() {
 						log("Initiating downloading 18gb zip");
 						doNetworkTest("http://www.ex.ua/load/102326988");
@@ -377,12 +444,21 @@ function abortLatestDownload() {
 
 				{
 					color: "#ffaaaa", label: "Abort latest download",
-					rect: [ 0, 2 * height / 3, width, height / 3 ],
+					rect: [ 0, 2 * height / 4, width, height / 4 ],
 					callback: function() {
 						log("Aborting latest download");
 						abortLatestDownload();
 					}
-				}
+				},
+
+				{
+					color: "#ffaaff", label: "Test broken download",
+					rect: [ 0, 3 * height / 4, width, height / 4 ],
+					callback: function() {
+						log("Initiating incorrect downloading");
+						doNetworkTest("http://path/to/incorrect/url");
+					}
+				},
 
 			];
 
