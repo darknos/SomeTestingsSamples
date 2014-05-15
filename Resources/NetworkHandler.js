@@ -77,14 +77,8 @@ todo:
 
 
 	function toPositiveNumber(v) {
-		var type = typeof v;
-		if (type === "string") {
-			v |= 0; // aka parseint
-			if (!isNaN(v) && isFinite(v)) return v;
-		} else {
-			if (type === "number") return Math.max(v, 0);
-		}
-		return undefined;
+		v = parseFloat(v) || parseInt(v);
+		return !isNaN(v) && isFinite(v) ? Math.max(v, 0) : undefined;
 	}
 
 
@@ -133,6 +127,7 @@ function bgLoad(url, params) {
 	var onComplete = params.onComplete;
 	var onProgress = params.onProgress;
 	var onFail     = params.onFail;
+	var onAfter    = params.onAfter;
 
 
 
@@ -190,6 +185,8 @@ function bgLoad(url, params) {
 
 		loadingActive = false;
 		URLSession.invalidateAndCancel(session);
+
+		if (typeof onAfter === "function") onAfter();
 
 	}
 
@@ -319,7 +316,15 @@ function bgLoad(url, params) {
 	// if (params.progressTimeout !== undefined) resetProgressTimeoutFail();
 
 	return {
-		abort: function() { finish("Aborting download due to request"); }
+
+		abort: function() {
+
+			if (typeof onFail === "function") onFail(0, "Aborted by request");
+
+			finish("Aborting download due to request");
+
+		}
+		
 	};
 }
 
@@ -362,30 +367,62 @@ function download(url, params) {
 }
 
 
-var latestLoader = null;
+
+// ===== Tracking loaders =====
+
+	var loaders = [];
+	function rememberLoader(obj) {
+		var id = loaders.push(obj);
+		log("Added loader " + id + " to array");
+		return id;
+	}
+
+	function removeLoader(id) {
+		log("Removing loader " + id + " from array");
+		delete loaders[id];
+	}
+
+	function abortLatestDownload() {
+		var i = loaders.length - 1;
+		var l;
+		while (i > 0 && !(l = loaders[i])) i--;
+		if (i < 0) {
+			log("Nothing to abort");
+		} else {
+			loaders[i].abort();
+		}
+	}
+
+// ============================
+
+
 
 function doNetworkTest(url) {
 
 	if (!url) return;
 
-	latestLoader = download(url,
+	var id;
+
+	loader = download(url,
 		{
 			onStart: function(size) {
 				log("Download started, size: " + size)
 			},
 			onComplete: function(data) {
-				latestLoader = null;
 				log("Loading complete. Recieved data is ", data);
 			},
 			onFail: function(errCode, errMsg) {
-				latestLoader = null;
 				log("Loading failed: [" + errCode + "]: " + errMsg);
 			},
 			onProgress: function(have, total, speed, eta) {
 				log("Loading... " + (100 * have / total).toFixed(2) + "%, ETA: " + parseInt(eta / 1000) + "s");
 			},
+			onAfter: function() {
+				log("onAfter");
+				removeLoader(id);
+			},
 			// progressUpdateInterval: 500
-			progressUpdateSize: 10 * 1024 * 1024 // 10mb
+			progressUpdateSize: 10 * 1024 * 1024 // 5mb
 			// progressUpdatePercent: 5
 			
 			// timeout: 3000,
@@ -393,10 +430,8 @@ function doNetworkTest(url) {
 		}
 	);
 
-}
+	id = rememberLoader(loader);
 
-function abortLatestDownload() {
-	latestLoader && latestLoader.abort();
 }
 
 
@@ -422,86 +457,130 @@ function abortLatestDownload() {
 
 		// ===== UI =====
 
+			var RETINA = Ti.Platform.displayCaps.density === "high";
+			var fontSize = height / 32 * (RETINA ? 2 : 1);
+
+			function Button(label, color, x, y, w, h, callback) {
+
+				var self = this;
+
+				this.color = color;
+				this.label = label;
+				this.x = x;
+				this.y = y;
+				this.width  = w;
+				this.height = h;
+				this.callback = callback;
+
+				this.sprite     = null;
+				this.textSprite = null;
+
+				var parsedColor = [];
+
+				this.click = function(time) {
+					self.callback && self.callback();
+					self.sprite.color.apply(self.sprite, parsedColor);
+					setTimeout(function() {
+						self.sprite.color(self.color);
+					}, time);
+				};
+
+				function init() {
+
+					self.sprite = platino.createSprite({
+						color: self.color,
+						x: self.x | 0,
+						y: self.y | 0,
+						width:  Math.ceil(self.width),
+						height: Math.ceil(self.height)
+					});
+
+					// hex color to 3 channels 0..1
+					parsedColor = self.color.match(/[\da-fA-F]{2}/g).map(function(e) {
+						return parseInt(e, 16) / 255;
+					});
+					self.sprite.color.apply(self.sprite, parsedColor);
+
+					self.textSprite = platino.createTextSprite({
+						text: self.label,
+						textAlign: Ti.UI.TEXT_ALIGNMENT_CENTER,
+						x: self.x,
+						y: self.y + self.height / 2 - fontSize / 2,
+						width:  self.width,
+						height: self.height,
+						fontSize: fontSize
+					});
+
+				}
+
+				init();
+
+			}
+
 			var buttons = [
 
-				{
-					color: "#aaffaa", label: "Download 35mb zip",
-					rect: [ 0, 0, width, height / 4 ],
-					callback: function() {
+				new Button(
+					"Download 35mb zip", "#aaffaa",
+					0, 0, width, height / 4,
+					function() {
 						log("Initiating downloading 35mb zip");
 						doNetworkTest("http://www.ex.ua/load/29563076");
 					}
-				},
+				),
 
-				{
-					color: "#ffffaa", label: "Download 18gb zip",
-					rect: [ 0, height / 4, width, height / 4 ],
-					callback: function() {
+				new Button(
+					"Download 18gb zip", "#ffffaa",
+					0, height / 4, width, height / 4,
+					function() {
 						log("Initiating downloading 18gb zip");
 						doNetworkTest("http://www.ex.ua/load/102326988");
 					}
-				},
+				),
 
-				{
-					color: "#ffaaaa", label: "Abort latest download",
-					rect: [ 0, 2 * height / 4, width, height / 4 ],
-					callback: function() {
+				new Button(
+					"Abort latest download", "#ffaaaa",
+					0, 2 * height / 4, width, height / 4,
+					function() {
 						log("Aborting latest download");
 						abortLatestDownload();
 					}
-				},
+				),
 
-				{
-					color: "#ffaaff", label: "Test broken download",
-					rect: [ 0, 3 * height / 4, width, height / 4 ],
-					callback: function() {
+				new Button(
+					"Test broken download", "#ffaaff",
+					0, 3 * height / 4, width, height / 4,
+					function() {
 						log("Initiating incorrect downloading");
 						doNetworkTest("http://path/to/incorrect/url");
 					}
-				},
+				),
 
 			];
 
 			buttons.forEach(function(e) {
 
-				var s = platino.createSprite({
-					color: e.color,
-					x: e.rect[0] | 0,
-					y: e.rect[1] | 0,
-					width:  Math.ceil(e.rect[2]),
-					height: Math.ceil(e.rect[3])
-				});
-
-				// hex color to 3 channels 0..1
-				s.color.apply(s, e.color.match(/[\da-fA-F]{2}/g).map(function(e) {
-					return parseInt(e, 16) / 255;
-				}));
-
-				s.addEventListener("touchstart", e.callback);
-
-				var t = platino.createTextSprite({
-					text: e.label,
-					textAlign: Ti.UI.TEXT_ALIGNMENT_CENTER,
-					x: e.rect[0] + e.rect[2] / 2,
-					y: e.rect[1] + e.rect[3] / 2
-				});
-
-				scene.add(s);
-				scene.add(t);
+				scene.add(e.sprite);
+				scene.add(e.textSprite);
 
 			});
 
 
 
 			game.addEventListener("touchstart", function(e) {
+				var x = e.x;
+				var y = e.y;
+				if (RETINA) {
+					x *= 2;
+					y *= 2;
+				}
 				buttons.some(function(btn) {
 					if (
-						e.x >= btn.rect[0] &&
-						e.y >= btn.rect[1] &&
-						e.x <= btn.rect[0] + btn.rect[2] &&
-						e.y <= btn.rect[1] + btn.rect[3]
+						x >= btn.x &&
+						y >= btn.y &&
+						x <= btn.x + btn.width &&
+						y <= btn.y + btn.height
 					) {
-						btn.callback && btn.callback();
+						btn.click();
 						return true;
 					}
 				});
