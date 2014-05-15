@@ -19,12 +19,6 @@ todo:
 	remove files on dl fail
 */
 
-
-
-var log = require("downloader/logger")("NetworkHandler", true);
-
-
-
 var osName = Ti.Platform.name;
 
 var OS_IOS     = osName === "iPhone OS";
@@ -33,9 +27,13 @@ var OS_ANDROID = osName === "android";
 
 var osVersion = (Ti.Platform.version.match(/\d+/) || [])[0];
 
-var BG_DOWNLOAD_SUPPORT = OS_IOS && osVersion >= 7;
+// var BG_DOWNLOAD_SUPPORT = OS_IOS && osVersion >= 7;
+var BG_DOWNLOAD_SUPPORT = false;
 
-var bgLoad = BG_DOWNLOAD_SUPPORT ? require("downloader/BackgroundDownloader") : function(){};
+
+var log      = require("downloader/utils").createLogger("NetworkHandler", true);
+var Download = require("downloader/Download");
+var bgLoad   = BG_DOWNLOAD_SUPPORT ? require("downloader/BackgroundDownloader") : function() {};
 
 
 
@@ -67,8 +65,22 @@ function download(url, params) {
 	var loader = null;
 
 	if (BG_DOWNLOAD_SUPPORT) {
+
 		loader = bgLoad(url,  params);
+
 	} else {
+
+		loader = new Download({
+			name: params.label,
+			url: url,
+			autostart: false
+		});
+
+		loader.model.on("started", function() {
+			log("BB: Download started");
+		});
+
+		loader.start();
 
 	}
 
@@ -92,14 +104,14 @@ function download(url, params) {
 		delete loaders[id];
 	}
 
-	function abortLatestDownload() {
+	function cancelLatestDownload() {
 		var i = loaders.length - 1;
 		var l;
 		while (i > 0 && !(l = loaders[i])) i--;
 		if (i < 0) {
-			log("Nothing to abort");
+			log("Nothing to cancel");
 		} else {
-			loaders[i].abort();
+			loaders[i].cancel();
 		}
 	}
 
@@ -107,7 +119,7 @@ function download(url, params) {
 
 
 
-function doNetworkTest(url) {
+function doNetworkTest(url, label) {
 
 	if (!url) return;
 
@@ -115,6 +127,7 @@ function doNetworkTest(url) {
 
 	loader = download(url,
 		{
+			label: label,
 			onStart: function(size) {
 				log("Download started, size: " + size)
 			},
@@ -125,14 +138,17 @@ function doNetworkTest(url) {
 				log("Loading failed: [" + errCode + "]: " + errMsg);
 			},
 			onProgress: function(have, total, speed, eta) {
-				log("Loading... " + (100 * have / total).toFixed(2) + "%, ETA: " + parseInt(eta / 1000) + "s");
+				log(
+					"Loading... " + (100 * have / total).toFixed(2) + "%, " +
+					"ETA: " + parseInt(eta / 1000) + "s"
+				);
 			},
 			onAfter: function() {
 				log("onAfter");
 				removeLoader(id);
 			},
 			// progressUpdateInterval: 500
-			progressUpdateSize: 10 * 1024 * 1024 // 5mb
+			progressUpdateSize: 10 * 1024 * 1024 // 10mb
 			// progressUpdatePercent: 5
 			
 			// timeout: 3000,
@@ -234,7 +250,7 @@ function doNetworkTest(url) {
 					0, 0, width, height / 4,
 					function() {
 						log("Initiating downloading 35mb zip");
-						doNetworkTest("http://www.ex.ua/load/29563076");
+						doNetworkTest("http://www.ex.ua/load/29563076", this.label);
 					}
 				),
 
@@ -243,16 +259,16 @@ function doNetworkTest(url) {
 					0, height / 4, width, height / 4,
 					function() {
 						log("Initiating downloading 18gb zip");
-						doNetworkTest("http://www.ex.ua/load/102326988");
+						doNetworkTest("http://www.ex.ua/load/102326988", this.label);
 					}
 				),
 
 				new Button(
-					"Abort latest download", "#ffaaaa",
+					"Cancel latest download", "#ffaaaa",
 					0, 2 * height / 4, width, height / 4,
 					function() {
-						log("Aborting latest download");
-						abortLatestDownload();
+						log("Canceling latest download");
+						cancelLatestDownload();
 					}
 				),
 
@@ -261,7 +277,7 @@ function doNetworkTest(url) {
 					0, 3 * height / 4, width, height / 4,
 					function() {
 						log("Initiating incorrect downloading");
-						doNetworkTest("http://path/to/incorrect/url");
+						doNetworkTest("http://path/to/incorrect/url", this.label);
 					}
 				),
 

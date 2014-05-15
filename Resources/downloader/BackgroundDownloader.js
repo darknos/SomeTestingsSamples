@@ -1,37 +1,9 @@
-var log = require("downloader/logger")("BackgroundDownloader", true);
+var Utils = require("downloader/utils");
+var log   = Utils.createLogger("BackgroundDownloader", true);
 
 
 
 // ===== Tools =====
-
-	function prettyStringify(obj, multiline, level) {
-		result = "{";
-		var keys = Object.keys(obj);
-		if (keys.length > 0) {
-			level = level || "";
-			result += multiline ? "\n" : " ";
-			Object.keys(obj).forEach(function(key, i, arr) {
-				if (multiline) result += level + "\t";
-				if (key.indexOf(":") !== -1) {
-					result += "\"" + key + "\"";
-				} else {
-					result += key;
-				}
-				result += ": ";
-				if (obj[key] === Object(obj[key])) {
-					result += prettyStringify(obj[key], multiline, level + "\t");
-				} else {
-					result += JSON.stringify(obj[key]);
-				}
-				if (i < arr.length - 1) result += multiline ? ",\n" : ", ";
-			});
-			result += multiline ? "\n" + level + "}" : " }";
-		} else {
-			result += "}";
-		}
-		return result;
-	}
-
 
 	function toPositiveNumber(v) {
 		v = parseFloat(v) || parseInt(v);
@@ -142,8 +114,8 @@ function bgLoad(url, params) {
 	// 		clearTimeout(progressFailTimeoutID);
 	// 		progressFailTimeoutID = setTimeout(function() {
 	// 			progressFailTimeoutID = -1;
-	// 			finish("Aborting download: progress timeout exceed");
-	// 			// abort("progress timeout exceed");
+	// 			finish("Canceling download: progress timeout exceed");
+	// 			// cancel("progress timeout exceed");
 	// 		}, params.progressTimeout);
 	// 	}
 	// }
@@ -216,7 +188,12 @@ function bgLoad(url, params) {
 			}
 		},
 
-		// { errorCode: -1100, message: "The requested URL was not found on this server.", success: false, ...
+		// {
+		// 	errorCode: -1100,
+		// 	message: "The requested URL was not found on this server.",
+		// 	success: false,
+		// 	...
+		// }
 		sessioncompleted: function(e) {
 
 			if (e.taskIdentifier !== taskID) return;
@@ -233,8 +210,12 @@ function bgLoad(url, params) {
 
 		},
 
-		backgroundtransfer:     function(e) { e.taskIdentifier === taskID && log("backgroundtransfer",     prettyStringify(e, true)); },
-		sessioneventscompleted: function(e) { e.taskIdentifier === taskID && log("sessioneventscompleted", prettyStringify(e, true)); }
+		backgroundtransfer:     function(e) {
+			e.taskIdentifier === taskID && log("backgroundtransfer",     prettyStringify(e, true));
+		},
+		sessioneventscompleted: function(e) {
+			e.taskIdentifier === taskID && log("sessioneventscompleted", prettyStringify(e, true));
+		}
 
 	};
 
@@ -255,7 +236,7 @@ function bgLoad(url, params) {
 	// if (timeout !== undefined) {
 	// 	failTimeoutID = setTimeout(function() {
 	// 		failTimeoutID = -1;
-	// 		finish("Aborting download: start timeout exceed");
+	// 		finish("Canceling download: start timeout exceed");
 	// 	}, params.timeout);
 	// }
 
@@ -263,11 +244,11 @@ function bgLoad(url, params) {
 
 	return {
 
-		abort: function() {
+		cancel: function() {
 
-			if (typeof onFail === "function") onFail(0, "Aborted by request");
+			if (typeof onFail === "function") onFail(0, "Download canceled");
 
-			finish("Aborting download due to request");
+			finish("Canceling download due to request");
 
 		}
 		
