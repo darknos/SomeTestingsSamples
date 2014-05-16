@@ -61,19 +61,28 @@ init();*/
 	// @param {Integer} [params.retryCount] 
 	// @param {Boolean} [params.forceRewrite]
 
-	// @property {Boolean} params.DOWNLOADED=false,
-	// @property {Boolean} params.STARTED=false,
-	// @property {Boolean} params.FAILED=false,
-	// @property {Boolean} params.CANCELED=false,
-	// @property {Boolean} params.IN_PROGRESS=false,
+
+	@property {Boolean} STARTED=false @readonly
+	Is true if download was ever started
+
+	@property {Boolean} IN_PROGRESS=false @readonly
+	Is true if download currently recieving any data
+
+	@property {Boolean} DOWNLOADED=false @readonly
+	@property {Boolean} FAILED=false @readonly
+	// @property {Boolean} CANCELED=false @readonly
+
+	@property {Float} DOWNLOADED_PERCENT=0 @readonly
+	Percents of downloaded amount
+
+	@property {Object} DOWNLOADED_DATA @readonly result of download
+	@property {String} DOWNLOADED_TEXT @readonly text result of download
 
 	// status: "not_started",
 
 	// progressPercent: 0,
 	// progressBytes:   0,
 	// totalBytes:      0,
-
-	// type: "text" | "data"
 
 
 	@method start
@@ -88,108 +97,167 @@ init();*/
  */
 
 
-function Download(params) {
+ var Download = Backbone.Model.extend({
 
-	this.name      = params.name;
-	this.url       = params.url;
-	this.autostart = defined(params.autostart, true);
-	// this.path      = defined(params.path, md5(this.url));
+	defaults: {
 
-	// if (id) {
-	// 	if (downloads[id]) {
-	// 		return downloads[id];
-	// 	} else {
-	// 		rememberDownload(this, id);
-	// 	}
-	// }
+		name: undefined,
+		url:  undefined,
+		autostart: true,
 
+		STARTED:     false,
+		IN_PROGRESS: false,
+		DOWNLOADED:  false,
+		FAILED:      false,
 
-	this.model = new (Backbone.Model.extend({
-		defaults: {
-			started:     false
-			// downloaded:  false,
-			// failed:      false,
-			// canceled:    false,
-			// downloading: false,
-			// errorCode: undefined
+		ERROR_CODE: 0,
+		ERROR_MESSAGE: "",
+
+		DOWNLOADED_PERCENT: 0,
+
+		DOWNLOADED_DATA: null,
+		DOWNLOADED_TEXT: ""
+
+	},
+
+	initialize: function() {
+
+		this.get("autostart") && this.start();
+
+	},
+
+	start: function() {
+
+		function fail(reason) {
+			log(
+				"Download failed" + 
+				(reason ? ". Reason: " + reason : "")
+			);
 		}
-	}))();
 
-	this.autostart && this.start();
+		if (!Ti.Network.online) {
+			fail("Can't start download: no internet connection");
+			return false;
+		}
 
-}
+		var download = this;
+		var url = download.get("url");
+
+		if (!url) {
+			fail("Can't start download: URL not specified");
+			return false;
+		}
+
+		log("Starting download...");			
+
+		download.set("STARTED", true);
+
+		var c = Ti.Network.createHTTPClient({
+
+			ondatastream: function(event) {
+				// log("ondatastream", Utils.prettyStringify(event));
+				// log("ondatastream", event.progress.toFixed(4));
+				download.set("DOWNLOADED_PERCENT", 100 * event.progress);
+			},
+
+			// success: {
+			// 	code: 0,
+			// 	success: true,
+			//  ...
+			// }
+			onload: function(event) {
+				log("onload", Utils.prettyStringify(event, true));
+				if (c.status === 200) {
+					log("URL downloaded", url);
+					download.set({
+						DOWNLOADED: true,
+						DOWNLOADED_DATA: this.responseData,
+						DOWNLOADED_TEXT: this.responseText
+					});
+				} else {
+					download.set("FAILED", true);
+					log("Couldn't download URL " + url + ", error code " + c.status);
+				}
+			},
+
+			// wrong url: {
+			// 	code: 1,
+			// 	error: "A connection failure occurred",
+			// 	success: false,
+			// 	...
+			// }
+			// minimized while loading, randomly while loading after some time: {
+			// 	code: 2,
+			// 	error: "The request timed out",
+			// 	success: false,
+			// 	...
+			// }
+			onerror: function(event) {
+				log("onerror", Utils.prettyStringify(event, true));
+				download.set({
+					FAILED: true,
+					ERROR_CODE: event.code,
+					ERROR_MESSAGE: event.error
+				});
+				log(
+					"Couldn't download URL " + url + ", " + 
+					"error code " + event.code + ": " + event.error
+				);
+			},
+
+			onreadystatechange: function(event) {
+				log(
+					"onreadystatechange readyState = " + this.readyState + 
+					" // " + DEBUG_STATE_CODES[this.readyState]
+					// Utils.prettyStringify(event, true),
+					// Utils.prettyStringify(this, true)
+				);
+				switch (this.readyState) {
+					case this.LOADING:
+						if (!download.get("IN_PROGRESS")) download.set("IN_PROGRESS", true);
+						break;
+					case this.DONE:
+						if (download.get("IN_PROGRESS")) download.set("IN_PROGRESS", false);
+						break;
+				}
+			},
+			onsendstream: function(event) { log("onsendstream", Utils.prettyStringify(event, true)); },
+
+			// file: download.path
+
+			timeout: 60000
+
+		});
+
+		var DEBUG_STATE_CODES = [];
+		["UNSENT",
+		"OPENED",
+		"HEADERS_RECEIVED",
+		"LOADING",
+		"DONE"].forEach(function(e) {
+			// log(e + " = " + c[e]);
+			DEBUG_STATE_CODES[c[e]] = e;
+		});
+
+
+		log("Opening request");
+		c.open("GET", url);
+		log("Sending request");
+		c.send();
+
+	},
+
+
+	cancel: function() {
 
 
 
-Download.prototype.start = function() {
-
-	this.model.set("started", true);
-
-	function fail(reason) {
-		log(
-			"Download failed" + 
-			(reason ? ". Reason: " + reason : "")
-		);
-	}
-
-	log("Starting download...");
-
-	var download = this;
-	var url = download.url;
-
-	if (!Ti.Network.online) {
-		fail("No internet connection");
-		return false;
-	}
-
-	if (!url) {
-		fail("URL not specified");
-		return false;
-	}
+	},
 
 
-	var c = Ti.Network.createHTTPClient({
+	clean: function() {}
 
-		ondatastream: function(event) {
-			log("ondatastream", Utils.prettyStringify(event));
-		},
-
-		onload: function(event) {
-			log("onload", Utils.prettyStringify(event, true));
-			if (c.status === 200) {
-				log("URL downloaded", url);
-				var data = this.responseData;
-			} else {
-				log("Couldn't download URL " + url + ", error code " + c.status);
-			}
-		},
-
-		onerror: function(event) {
-			log("onerror", Utils.prettyStringify(event, true));
-			log("Couldn't download URL " + url + ", error code " + c.status);
-		},
-
-		onreadystatechange: function(event) { log("onreadystatechange", Utils.prettyStringify(event, true)/*, Utils.prettyStringify(this, true)*/); },
-		onsendstream:       function(event) { log("onsendstream",       Utils.prettyStringify(event, true)); },
-
-		// file: download.path
-
-		timeout: 60000
-
-	});
-
-	log("Opening request");
-	c.open("GET", url);
-	log("Sending request");
-	c.send();
-
-};
-
-
-Download.prototype.cancel = function() {};
-
-
-Download.prototype.clean  = function() {};
+});
 
 
 

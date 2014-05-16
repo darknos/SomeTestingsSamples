@@ -31,7 +31,8 @@ var osVersion = (Ti.Platform.version.match(/\d+/) || [])[0];
 var BG_DOWNLOAD_SUPPORT = false;
 
 
-var log      = require("downloader/utils").createLogger("NetworkHandler", true);
+var Utils    = require("downloader/utils");
+var log      = Utils.createLogger("NetworkHandler", true);
 var Download = require("downloader/Download");
 var bgLoad   = BG_DOWNLOAD_SUPPORT ? require("downloader/BackgroundDownloader") : function() {};
 
@@ -76,8 +77,13 @@ function download(url, params) {
 			autostart: false
 		});
 
-		loader.model.on("started", function() {
-			log("BB: Download started");
+		loader.on("change", function(model, changes) {
+			log(
+				"Model changed: " +
+				Object.keys(changes.changes)
+					.map(function(key) { return key + " = " + loader.get(key); })
+					.join(", ")
+			);
 		});
 
 		loader.start();
