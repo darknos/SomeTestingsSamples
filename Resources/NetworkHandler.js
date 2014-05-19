@@ -35,6 +35,7 @@ var Utils    = require("downloader/utils");
 var log      = Utils.createLogger("NetworkHandler", true);
 var Download = require("downloader/Download");
 var bgLoad   = BG_DOWNLOAD_SUPPORT ? require("downloader/BackgroundDownloader") : function() {};
+var _        = require("lib/underscore");
 
 
 
@@ -80,9 +81,19 @@ function download(url, params) {
 		loader.on("change", function(model, changes) {
 			log(
 				"Model changed: " +
-				Object.keys(changes.changes)
-					.map(function(key) { return key + " = " + loader.get(key); })
-					.join(", ")
+				Object.keys(changes.changes).map(
+					function(key) {
+						var value = loader.get(key);
+						if (key === "DOWNLOADED_TEXT") {
+							if (typeof value === "string") {
+								value = "String[" + value.length + "]";
+							} else {
+								value = Object.prototype.toString.call(value) + " // " + typeof value;
+							}
+						}
+						return key + " = " + value;
+					}
+				).join(", ")
 			);
 		});
 
@@ -110,14 +121,19 @@ function download(url, params) {
 		delete loaders[id];
 	}
 
-	function cancelLatestDownload() {
+	function getLatestDownload() {
 		var i = loaders.length - 1;
 		var l;
 		while (i > 0 && !(l = loaders[i])) i--;
-		if (i < 0) {
-			log("Nothing to cancel");
+		if (i >= 0) return loaders[i];
+	}
+
+	function cancelLatestDownload() {
+		var l = getLatestDownload();
+		if (l) {
+			l.cancel();
 		} else {
-			loaders[i].cancel();
+			log("Nothing to cancel");
 		}
 	}
 
@@ -253,7 +269,7 @@ function doNetworkTest(url, label) {
 
 				new Button(
 					"Download 35mb zip", "#aaffaa",
-					0, 0, width, height / 4,
+					0, 0, width, height / 5,
 					function() {
 						log("Initiating downloading 35mb zip");
 						doNetworkTest("http://www.ex.ua/load/29563076", this.label);
@@ -262,7 +278,7 @@ function doNetworkTest(url, label) {
 
 				new Button(
 					"Download 18gb zip", "#ffffaa",
-					0, height / 4, width, height / 4,
+					0, height / 5, width, height / 5,
 					function() {
 						log("Initiating downloading 18gb zip");
 						doNetworkTest("http://www.ex.ua/load/102326988", this.label);
@@ -271,7 +287,7 @@ function doNetworkTest(url, label) {
 
 				new Button(
 					"Cancel latest download", "#ffaaaa",
-					0, 2 * height / 4, width, height / 4,
+					0, 2 * height / 5, width, height / 5,
 					function() {
 						log("Canceling latest download");
 						cancelLatestDownload();
@@ -280,12 +296,33 @@ function doNetworkTest(url, label) {
 
 				new Button(
 					"Test broken download", "#ffaaff",
-					0, 3 * height / 4, width, height / 4,
+					0, 3 * height / 5, width, height / 5,
 					function() {
 						log("Initiating incorrect downloading");
 						doNetworkTest("http://path/to/incorrect/url", this.label);
 					}
 				),
+
+				new Button(
+					"Print latest download model", "#aaffff",
+					0, 4 * height / 5, width, height / 5,
+					function() {
+						log("Printing latest download model");
+						var model = (getLatestDownload() || {}).attributes;
+						if (!model) {
+							log("No download found");
+						} else {
+							log(
+								"Latest download model: " +
+								Utils.prettyStringify(
+									_.defaults({ DOWNLOADED_TEXT:
+										Object.prototype.toString.call(model.DOWNLOADED_TEXT)
+									}, model), true
+								)
+							);
+						}
+					}
+				)
 
 			];
 

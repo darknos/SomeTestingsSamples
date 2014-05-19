@@ -210,8 +210,8 @@ function bgLoad(url, params) {
 
 		},
 
-		backgroundtransfer:     function(e) {
-			e.taskIdentifier === taskID && log("backgroundtransfer",     prettyStringify(e, true));
+		backgroundtransfer: function(e) {
+			e.taskIdentifier === taskID && log("backgroundtransfer", prettyStringify(e, true));
 		},
 		sessioneventscompleted: function(e) {
 			e.taskIdentifier === taskID && log("sessioneventscompleted", prettyStringify(e, true));
