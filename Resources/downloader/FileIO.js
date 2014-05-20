@@ -22,6 +22,10 @@ function fileExists(filename) {
 	return getFile(filename).exists();
 }
 
+function isEmpty(filename) {
+	return getFile(filename).size === 0;
+}
+
 
 
 function createFolder(folderName) {
@@ -176,3 +180,16 @@ function deleteFile(filename) {
 	}
 
 }
+
+
+
+module.exports = {
+
+	getFile:      getFile,
+	fileExists:   fileExists,
+	createFolder: createFolder,
+	writeFile:    writeFile,
+	readFile:     readFile,
+	deleteFile:   deleteFile
+
+};

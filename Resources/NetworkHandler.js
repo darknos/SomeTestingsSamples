@@ -1,8 +1,8 @@
 /*
 1. get url
-2. get cloud
 3. get zip
-4. cache?
+3. get cloud ?
+4. cache ?
 
 features:
 	cross platform
@@ -37,27 +37,38 @@ var Download = require("downloader/Download");
 var bgLoad   = BG_DOWNLOAD_SUPPORT ? require("downloader/BackgroundDownloader") : function() {};
 var _        = require("lib/underscore");
 
-
+function isFunc(obj) { return typeof obj === "function"; }
 
 /*
 	params = {
 
-		onStart:    function(size: <int>),
-		onProgress: function(have: <int>, total: <int>, speed: <float>, eta: <int>),
-		onComplete: function(data: <TiBlob>),
-		onFail:     function(errCode: <int>, errMesage: <string>),
+		onStart: function(size: <int>),
+			`size` might be inaccessible for non-bg dl
+		onProgress: function(percent: <float>, have: <int>, total: <int>, speed: <float>, eta: <int>),
+			`have`, `total`, `speed`, `eta` might be inaccessible for non-bg dl
+		onComplete: function(data: <TiBlob>, text: <String>, xml: Titanium.XML.Document),
+			For bg dl, `text` and `xml` are inaccessible.
+			For non-bg dl, `data`, `text` and `xml` accessibility depends on requested response type.
+			By default it means only `data`.
+		onFail: function(errCode: <int>, errMesage: <string>),
+		onAfter: function(),
 
 		// Time in ms
 		progressUpdateInterval: <int>,
+			Doesn't work for non-bg dl
 
 		// Size in bytes
 		progressUpdateSize: <int>,
+			Doesn't work for non-bg dl
 
 		// Percents
 		progressUpdatePercent: <int>,
+			Doesn't work for non-bg dl
 
 		// timeout: <int>,
 		// startTimeout: <int>
+
+		file: <String>
 	}
  */
 function download(url, params) {
@@ -75,7 +86,8 @@ function download(url, params) {
 		loader = new Download({
 			name: params.label,
 			url: url,
-			autostart: false
+			autostart: false,
+			path: params.file
 		});
 
 		loader.on("change", function(model, changes) {
@@ -94,6 +106,42 @@ function download(url, params) {
 						return key + " = " + value;
 					}
 				).join(", ")
+			);
+		});
+
+		loader.on("change:STATUS", function(model) {
+			switch(model.get("STATUS")) {
+				case "DONE": isFunc(params.onAfter) && params.onAfter(); break;
+				case "LOADING":
+					isFunc(params.onStart) && params.onStart(model.get("TOTAL_BYTES"));
+					break;
+			}
+		});
+
+		loader.on("change:FAILED", function(model) {
+			if (isFunc(params.onFail) && model.get("FAILED")) {
+				params.onFail(
+					model.get("ERROR_CODE"),
+					model.get("ERROR_MESSAGE")
+				);
+			}
+		});
+
+		loader.on("change:DOWNLOADED", function(model) {
+			if (isFunc(params.onComplete) && model.get("DOWNLOADED")) {
+				params.onComplete(
+					model.get("DOWNLOADED_DATA"),
+					model.get("DOWNLOADED_TEXT"),
+					model.get("DOWNLOADED_XML")
+				);
+			}
+		});
+
+		loader.on("change:DOWNLOADED_PERCENT", function(model) {
+			isFunc(params.onProgress) && params.onProgress(
+				model.get("DOWNLOADED_PERCENT"),
+				undefined,
+				model.get("TOTAL_BYTES")
 			);
 		});
 
@@ -149,20 +197,23 @@ function doNetworkTest(url, label) {
 
 	loader = download(url,
 		{
+			file: "testDownload2File/test1.dat",
 			label: label,
 			onStart: function(size) {
-				log("Download started, size: " + size)
+				log("Download started, size: " + size);
 			},
-			onComplete: function(data) {
-				log("Loading complete. Recieved data is ", data);
+			onComplete: function(data, text, xml) {
+				text = text && typeof text === "string" ? "String[" + text.length + "]" : "undefined";
+				xml  = xml && Object.keys(xml).length > 0 ? "XML object" : "undefined";
+				log("Loading complete. Recieved data is " + data, text, xml);
 			},
 			onFail: function(errCode, errMsg) {
 				log("Loading failed: [" + errCode + "]: " + errMsg);
 			},
-			onProgress: function(have, total, speed, eta) {
+			onProgress: function(percent, have, total, speed, eta) {
 				log(
-					"Loading... " + (100 * have / total).toFixed(2) + "%, " +
-					"ETA: " + parseInt(eta / 1000) + "s"
+					"Loading... " + percent.toFixed(2) + "%" +
+					(eta ? ", ETA: " + parseInt(eta / 1000) + "s" : "")
 				);
 			},
 			onAfter: function() {

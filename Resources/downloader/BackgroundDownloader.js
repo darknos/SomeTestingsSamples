@@ -181,7 +181,7 @@ function bgLoad(url, params) {
 					if (percent) lastProgressUpdate.percent = c;
 					var speed = have / (d - lastProgressUpdate.timeStart);
 					onProgress(
-						have, total,
+						c, have, total,
 						speed, (total - have) / speed						
 					);
 				}

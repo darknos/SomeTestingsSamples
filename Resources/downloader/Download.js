@@ -54,7 +54,7 @@ init();*/
 	@param {String | Object} [params.url]
 	Rather string of a resource, or an object:
 		Titanium.Network.HTTPClient extended with {
-			url: {String} path to a resource
+			url: {String} 
 			method: {"GET" | "POST"} request method, default is "GET"
 			arguments: {Object | TiBlob}
 			response: {String | Array}
@@ -106,7 +106,7 @@ init();*/
 
 	@property {String} STATUS @readonly "UNSENT", "OPENED", "HEADERS_RECEIVED", "LOADING", "DONE"
 
-	@property {Integer} TOTAL_SIZE @readonly Size of the download in bytes
+	@property {Integer} TOTAL_BYTES @readonly Size of the download in bytes
 
 	// progressBytes: 0,
 	// totalBytes:    0,
@@ -125,7 +125,7 @@ init();*/
  */
 
 
- var Download = Backbone.Model.extend({
+var Download = Backbone.Model.extend({
 
 	defaults: {
 
@@ -147,6 +147,7 @@ init();*/
 		ERROR_MESSAGE: "",
 
 		DOWNLOADED_PERCENT: 0,
+		DOWNLOADED_BYTES: 0,
 		TOTAL_BYTES: 0,
 
 		DOWNLOADED_DATA: null,
@@ -159,28 +160,55 @@ init();*/
 
 	_httpClient: null,
 
-	initialize: function() {
-
-		this.get("autostart") && this.start();
-
+	_smartSet: function(key, value) {
+		var map;
+		if (typeof key === "string") {
+			map = {};
+			map[key] = value;
+		} else {
+			map = _.clone(key);
+		}
+		for (var key in map) {
+			var v = this.get(key);
+			if (v === value/* || typeof v === "TiBlob"*/) delete map.key; // XXX
+		}
+		if (Object.keys(map).length > 0) this.set(map);
 	},
 
+
+
+	initialize: function() {
+		this.get("autostart") && this.start();
+	},
+
+
+
+	// Methods
+	// -------
+
 	start: function() {
+
+		var download = this;
 
 		function fail(reason) {
 			log(
 				"Download failed" + 
 				(reason ? ". Reason: " + reason : "")
 			);
+			download._smartSet({
+				FAILED: true,
+				STATUS: "DONE",
+				ERROR_MESSAGE: reason,
+				ERROR_CODE: -1
+			});
 			return false;
 		}
-
-		var download = this;
 
 		if (!Ti.Network.online) return fail("Can't start download: no internet connection");
 
 		var status = download.get("STATUS");
 		if (status !== "UNSENT" && status !== "DONE") {
+			download.cancel();
 			return fail("Can't start download: it is already taking place");
 		}
 
@@ -202,7 +230,7 @@ init();*/
 
 			if (_.isObject(url)) {
 
-				clientDetails = _.extend(
+				_.extend(clientDetails,
 					_.pick(url, [
 						"autoEncodeUrl",
 						"autoRedirect",
@@ -215,8 +243,7 @@ init();*/
 						"username",
 						"validatesSecureCertificate",
 						"withCredentials"
-					]),
-					clientDetails
+					])
 				);
 
 				callbacks = _.pick(url, [
@@ -248,7 +275,7 @@ init();*/
 
 				if (url.arguments !== undefined) arguments = url.arguments;
 
-				file = url.file;
+				fname = url.file;
 
 				url = url.url;
 
@@ -260,11 +287,32 @@ init();*/
 
 			}
 
+
+
+			var fname = download.get("path") || fname;
+			if (fname) {
+				file = FileIO.getFile(fname, true);
+				if (file.exists()) {
+					if (!download.get("forceOverwrite")) {
+						if (file.size !== 0) {
+							return fail("File already exists: " + file);
+						} else {
+							log("File exists but it's empty, overwriting...");
+						}
+					} else {
+						log("Overwriting existing file: " + file);
+					}
+				} else {
+					file.createFile();
+				}
+				file.remoteBackup = !!download.get("remoteBackup");
+			}
+
 		// ======================
 
 		log("Starting download...");			
 
-		download.set({
+		download._smartSet({
 
 			STARTED:    true,
 			DOWNLOADED: false,
@@ -279,6 +327,7 @@ init();*/
 			DOWNLOADED_XML: null,
 
 			DOWNLOADED_PERCENT: 0,
+			DOWNLOADED_BYTES: 0,
 			TOTAL_BYTES: 0,
 
 			STATUS: "UNSENT"
@@ -293,8 +342,17 @@ init();*/
 			ondatastream: function(event) {
 				// log("ondatastream", Utils.prettyStringify(event));
 				// log("ondatastream", event.progress.toFixed(4));
+				log("ondatastream", Utils.prettyStringify(this, true));
+				log("responseData", this.responseData);
+				if (download.get("TOTAL_BYTES") === 0) {
+					var size = parseInt(this.getResponseHeader("Content-length"));
+					size && download.set("TOTAL_BYTES", size);
+				}
 				if (typeof callbacks.ondatastream === "function") callbacks.ondatastream(event);
-				download.set("DOWNLOADED_PERCENT", 100 * event.progress);
+				download.set({
+					DOWNLOADED_PERCENT: 100 * event.progress,
+					DOWNLOADED_BYTES: Math.floor(event.progress * download.get("TOTAL_BYTES"))
+				});
 			},
 
 
@@ -319,8 +377,12 @@ init();*/
 					}
 					download.set(_.extend({ DOWNLOADED: true }, result));
 				} else {
-					download.set("FAILED", true);
-					log("Couldn't download URL " + url + ", error code " + c.status);
+					download.set({
+						FAILED: true,
+						ERROR_CODE: event.code,
+						ERROR_MESSAGE: "Code " + this.status
+					});
+					log("Couldn't download URL " + url + ", error code " + this.status);
 				}
 			},
 
@@ -367,8 +429,8 @@ init();*/
 				// log("Headers: " + this.allResponseHeaders);
 				switch (this.readyState) {
 					case this.HEADERS_RECEIVED:
-						var size = parseInt(this.getResponseHeader("Content-length"));
-						size && download.set("TOTAL_BYTES", size);
+						// var size = parseInt(this.getResponseHeader("Content-length"));
+						// size && download.set("TOTAL_BYTES", size);
 						break;
 					case this.LOADING:
 						if (!download.get("IN_PROGRESS")) download.set("IN_PROGRESS", true);
@@ -386,8 +448,6 @@ init();*/
 				if (typeof callbacks.onsendstream === "function") callbacks.onsendstream(event);
 				log("onsendstream", Utils.prettyStringify(event, true));
 			}
-
-			// file: download.path
 
 		}));
 
@@ -408,18 +468,7 @@ init();*/
 		log("Opening request");
 		download._httpClient.open("GET", url);
 
-		file = download.get("path") || file;
-		if (file) {
-			if (FileIO.fileExists(file)) {
-				if (!download.get("forceOverwrite")) {
-					return fail("File already exists: " + file);
-				} else {
-					log("Overwriting existing file: " + file);
-				}
-			}
-			getFile(file, true).remoteBackup = !!download.get("remoteBackup");
-			download._httpClient.file = file;
-		}
+		if (file) download._httpClient.file = file;
 
 		log("Sending request");
 		download._httpClient.send(arguments);
@@ -427,6 +476,7 @@ init();*/
 		return true;
 
 	},
+
 
 
 	cancel: function() {
@@ -450,16 +500,16 @@ init();*/
 	},
 
 
+
 	clean: function() {
 
-		if (this._httpClient.file) {
+		var fname = this._httpClient.file;
 
-			var file = FileIO.getFile(this._httpClient.file);
-			if (file.exists()) FileIO.deleteFile();
+		fname && FileIO.deleteFile(fname);
 
-		}
+	},
 
-	}
+
 
 });
 
