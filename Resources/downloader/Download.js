@@ -1,3 +1,5 @@
+// todo: detect error on resume after timeout
+
 var Backbone = require("lib/Backbone");
 var Utils    = require("downloader/utils");
 var log      = Utils.createLogger("Download.js", true);
@@ -157,6 +159,8 @@ var Download = Backbone.Model.extend({
 		STATUS: "UNSENT"
 
 	},
+
+
 
 	_httpClient: null,
 
