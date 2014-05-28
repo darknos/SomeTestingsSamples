@@ -126,6 +126,35 @@ init();*/
 
  */
 
+// var DownloadModel = Backbone.Model.extend({
+
+// 	defaults: {
+
+// 		name: undefined,
+// 		url:  undefined,
+
+// 		STATE: Download.STATE_IDLE,
+
+// 		ERROR_CODE: Download.ERROR_NONE,
+// 		ERROR_MESSAGE: "",
+
+// 		DOWNLOADED_PERCENT: 0,
+// 		DOWNLOADED_BYTES:   0,
+// 		TOTAL_BYTES:        0,
+
+// 		DOWNLOADED_DATA: null,
+// 		DOWNLOADED_TEXT: "",
+// 		DOWNLOADED_XML: null
+
+// 	}
+
+// });
+
+// Download.prototype.STATE_IDLE = 0;
+// Download.prototype.STATE_DOWNLOADING = 1;
+// Download.prototype.STATE_DONE = 2;
+// Download.prototype.STATE_FAILED = 3;
+
 
 var Download = Backbone.Model.extend({
 

@@ -1,4 +1,16 @@
-var Backbone = require("lib/Backbone");
+var Backbone    = require("lib/Backbone");
+var Compression = require("ti.compression");
+var Download    = require("downloader/Download");
+
+// ===== Tools =====
+
+	function isString(obj) {
+		return Object.prototype.toString.call(obj) === "[object String]";
+	}
+
+// =================
+
+
 
 /**
 
@@ -17,8 +29,7 @@ var Backbone = require("lib/Backbone");
 	 * It's remote and is not downloaded yet.
 	 * It's zip and it's not unpacked yet.
 
-	Then you can use `dataPath` to acces the working
-	path of folder or file, depending on resource type.
+	Then you can use `dataPath` to acces the working path of folder or file, depending on resource type.
 
 	If it's not ready, you can use `load`, `obtain` or `download` and `unpack`, and listen for
 	`STATE` change (should over at rather Resource.STATE_READY or Resource.STATE_FAILED). 
@@ -43,6 +54,9 @@ var Backbone = require("lib/Backbone");
 	// /Resources/Products/wallpaper.png
 	// http://path/to/manifest.txt
 	// http://path/to/archive.zip
+
+@param {String} [details.id]
+	Id of the resource, used for restoring Resource. Default is value of `details.url`
 
 @param {String} [details.destination = ""]
 	Where to place obtained data. May be rather blank or path to folder or file.
@@ -70,128 +84,207 @@ var Backbone = require("lib/Backbone");
 
 @param {Boolean} [details.remoteBackup = false]
 
+
+@property {String} id
 @property {Boolean} locked
-@property {Resource.STATE_*} STATE
 
-@property {Download} downloadObject
+@property {Resource.STATE_*} STATE @readonly
 
-@property {String} dataPath
+@property {Boolean} IS_ZIP    @readonly
+@property {Boolean} IS_FOLDER @readonly
+@property {Boolean} IS_LOCAL  @readonly
+
+@property {Download} downloadObject @readonly
+
+@property {String} dataPath @readonly
+
 */
-var Resource = Backbone.model.extend({
 
-	defaults: {
+function Resource(params) {
 
-		STATE: Resource.STATE_IDLE,
+	var self = this;
 
-		IS_ZIP:    false,
-		IS_FOLDER: false,
-		IS_LOCAL:  false,
+	// Normalize input
+	if (isString(params)) params = { url: params };
 
-		locked: false,
+	this.model = null;
 
-		url:      "",
-		dataPath: "",
+	this.downloadModel = null;
 
-		downloadObject: null
+	this.IS_ZIP    = false;
+	this.IS_FOLDER = false;
+	this.IS_LOCAL  = false;
 
-	},
+	this.url      = "";
+	this.id       = "";
+	this.dataPath = "";
 
-	constructor: function(params) {
 
-		var self = this;
 
-		// ===== Shortcuts =====
+	// ===== Init =====
 
-			var get = this.get;
+		this.IS_LOCAL  = !!params.local;
+		this.IS_FOLDER = !!params.folder;
+		this.IS_ZIP    = !!params.compressed;
 
-			// silent set
-			function init(name, value) {
-				var params;
-				if (!isString(name)) {
-					params = {};
-					params[name] = value;
-				} else {
-					params = name;
-				}
-				self.set(params, { silent: true });
-			}
+		if (params.url)      this.url      = params.url;
+		if (params.dataPath) this.dataPath = params.destination;
+		this.id = params.id || params.url || "";
 
-		// =====================
+		this.autoDownload = !!params.autoDownload;
+		this.autoUnpack   = !!params.autoUnpack;
 
-		// normalize input
-		if (isString(params)) params = { url: params };
-
-		init({
-
-			IS_LOCAL:  !!params.local,
-			IS_FOLDER: !!params.folder,
-			IS_ZIP:    !!params.compressed,
-
-			url:      params.url         || "",
-			dataPath: params.destination || "",
-
-			locked: !!params.locked,
-
-			autoLoad:     !!params.autoLoad,
-			autoDownload: !!params.autoDownload,
-			autoUnpack:   !!params.autoUnpack
-
+		this.model = new ResourceModel({
+			STATE: this.IS_LOCAL && !this.IS_ZIP ? Resource.STATE_READY : Resource.STATE_IDLE,
+			locked: !!params.locked
 		});
 
-		if (get("IS_LOCAL")) init("STATE", Resource.STATE_READY);
+		if (this.model.get("STATE") === Resource.STATE_READY) return this;
 
-		function autoLoad() {
-			// ...
-			if (fail) this.obtain();
-		}
-		function autoDownload() {
-			if (IS_LOCAL) {
-				autoUnpack();
-				return;
-			}
-			// ...
-			if (success) autoUnpack();
-		}
-		function autoUnpack() {
-			if (!IS_ZIP) return;
-			// ...
-		}
+		var goOn = true;
+		if (params.autoLoad) goOn = !this.load();
+		if (!goOn) return this;
 
-		if (params.autoLoad) autoLoad();
-
-		// Launch original constructor without 1st param
-		Backbone.Model.apply(this,
-			[ undefined ].concat(Array.prototype.slice.call(arguments, 1))
+		var autoUnpack = this.IS_ZIP && params.autoUnpack;
+		if (this.IS_LOCAL) {
+			autoUnpack && this.unpack();
+		} else
+		if (params.autoDownload) this.download(
+			autoUnpack ? function() { this.unpack(); } : undefined
 		);
+		
+	// ================
 
-	}
+}
 
-}, {
 
-	LOCAL:  0x1,
-	REMOTE: 0x2,
 
-	STATE_IDLE:        0,
-	STATE_DOWNLOADING: 1,
-	STATE_UNPACKING:   2,
-	STATE_READY:       3,
-	STATE_FAILED:      4,
+// ===== Model =====
 
-	load: function() {
-		// restore Resource from persistant data, such as files, Ti.App.Properties
-	},
+	var ResourceModel = Backbone.Model.extend({
 
-	download: function() {
-		// download resource
-	},
+		defaults: {
 
-	unpack: function() {
-		// unpack zip
-	},
+			STATE:      Resource.STATE_IDLE,
+			ERROR_CODE: Resource.ERROR_NONE,
 
-	obtain: function() {
+			locked: false
+
+		}
+
+	});
+	
+// =================
+
+
+
+// ===== Methods =====
+
+	// Save Resource to persistant data, such as files, Ti.App.Properties etc
+	Resource.prototype.save = function() {
+		
+
+
+	};
+
+
+	// Restore Resource from persistant data, such as files, Ti.App.Properties etc
+	Resource.prototype.load = function() {
+
+
+
+		// this.update();
+
+	};
+
+
+	// Sets `STATE` to `Resource.STATE_FAILED` if resulting file(s) was deleted
+	Resource.protype.update = function() {
+
+
+
+	};
+
+
+
+	// download resource
+	// Can't be done if `STATE` is not `STATE_IDLE` nor `STATE_FAILED`
+	Resource.prototype.download = function(onOk, onFail, onAnyway) {
+
+		function success(/* arguments */) {
+			if (typeof onOk     === "function") onOk.apply(this, arguments);
+			if (typeof onAnyway === "function") onAnyway();
+			return true;
+		}
+
+		function fail() {
+			if (typeof onFail   === "function") onFail();
+			if (typeof onAnyway === "function") onAnyway();
+			return false;
+		}
+
+		var state = this.model.get("STATE");
+		if (state !== Resource.STATE_IDLE && state !== Resource.STATE_FAILED) return fail();
+
+		this.model.set("STATE", Resource.STATE_DOWNLOADING);
+
+		this.downloadModel = new Download(this.url, {
+			onOk: success,
+			onFail: fail
+		});
+
+	};
+
+	// XXX unpack zip
+	Resource.prototype.unpack = function(onOk, onFail, onAnyway) {
+		var zipFilePath; // Ti.Filesystem.applicationDataDirectory + filepath,
+		var destination; // Ti.Filesystem.applicationDataDirectory + zipFilepath,
+		var overwrite = true;
+		var success = Compression.unzip(zipFilepath, destination, overwrite);
+		if (success) {
+			// todo:
+			// If zip contained single file, move it to `destination`
+			// Delete zip if needed
+			// Permanently mark resource as obtained
+			this.model.set("STATE", Resource.STATE_DONE);
+		} else {
+			this.model.set({
+				STATE:      Resource.FAILED
+				ERROR_CODE: Resource.ERROR_UNPACK_FAILED
+			});
+		}
+		this.model.set("STATE", success ? Resource.STATE_DONE : Resource.STATE_FAILED);
+		return success;
+	};
+
+
+
+	Resource.prototype.obtain = function() {
 		// download if needed
 		// unpack if needed
-	}
+		if (this.IS_LOCAL) {
+			if (this.IS_ZIP && this.autoUnpack) this.unpack();
+		} else {
+			this.download();
+		}
+	};
 
-});
+// ===================
+
+
+
+// ===== Constants =====
+
+
+	Resource.prototype.STATE_IDLE        = 0;
+	Resource.prototype.STATE_DOWNLOADING = 1;
+	Resource.prototype.STATE_READY       = 2;
+	Resource.prototype.STATE_FAILED      = 3;
+
+	Resource.prototype.ERROR_NONE          = 0;
+	Resource.prototype.ERROR_UNPACK_FAILED = 1;
+
+	// Resource.prototype.LOCAL  = 1;
+	// Resource.prototype.REMOTE = 2;
+
+// =====================
