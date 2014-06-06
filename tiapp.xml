@@ -47,5 +47,6 @@
         <module platform="commonjs">co.lanica.box2djs</module>
         <module platform="iphone">com.ti.game2d</module>
         <module platform="android">com.ti.game2d</module>
+        <module platform="iphone">com.appcelerator.urlSession</module>
     </modules>
 </ti:app>
