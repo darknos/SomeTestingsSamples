@@ -249,7 +249,7 @@ function Resource(params) {
 			this.model.set("STATE", Resource.STATE_DONE);
 		} else {
 			this.model.set({
-				STATE:      Resource.FAILED
+				STATE:      Resource.FAILED,
 				ERROR_CODE: Resource.ERROR_UNPACK_FAILED
 			});
 		}

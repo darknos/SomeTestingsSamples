@@ -59,7 +59,7 @@ function Product() {
 		}
 	});
 
-	puzzle.
+	//puzzle.
 	
 // ==========================
 
