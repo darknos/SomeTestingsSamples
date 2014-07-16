@@ -81,7 +81,10 @@
 //Ti.include("Particles_size.js");
 //
 
-Ti.include("readAppDataDir.js");
+//Ti.include("readAppDataDir.js");
 
 // example of usage NetworkHandler
 // Ti.include("NetworkHandler.js");
+
+//Test getSpritesAtXY in new android core
+Ti.include("NewAndroidCoreTest.js");
